@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle Navy Quiz</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #010408;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Container principal preenchendo a tela com as laterais livres para o efeito Matrix */
+        .stage-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #010408;
+        }
+
+        /* Imagem de fundo centralizada */
+        .bg-image {
+            height: 100%;
+            width: auto;
+            max-width: 100%;
+            object-fit: contain;
+            display: block;
+            z-index: 10;
+        }
+
+        /* Canvas laterais estilo Matrix para simular código de computadores de bordo do navio */
+        .matrix-canvas {
+            position: absolute;
+            top: 0;
+            width: 25vw;
+            height: 100vh;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.65;
+        }
+
+        #matrix-left {
+            left: 0;
+        }
+
+        #matrix-right {
+            right: 0;
+        }
+
+        /* Camada do Vídeo em Tela Cheia */
+        #introVideo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            background: #000;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Botão "Entrar no Jogo" centralizado sobre a imagem ao término do vídeo */
+        .game-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
+            height: 85px;
+            background: #070d18;
+            border: 2px solid #233856;
+            box-shadow: inset 0 0 15px rgba(0, 162, 255, 0.4), 0 6px 20px rgba(0,0,0,0.95);
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            font-size: 20px;
+            color: #d0e8ff;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px rgba(0, 162, 255, 0.9), 0 2px 4px rgba(0,0,0,0.9);
+            transition: all 0.2s ease-in-out;
+            z-index: 50;
+            opacity: 0;
+            animation: fadeInButton 0.8s ease forwards 0.3s;
+        }
+
+        @keyframes fadeInButton {
+            from { opacity: 0; transform: translate(-50%, -40%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        .game-button:hover {
+            background: #0d1727;
+            border-color: #00a2ff;
+            color: #ffffff;
+            text-shadow: 0 0 15px rgba(0, 200, 255, 1), 0 0 25px rgba(0, 162, 255, 0.9);
+            box-shadow: inset 0 0 18px rgba(0, 162, 255, 0.6), 0 8px 25px rgba(0,0,0,0.95);
+            transform: translate(-50%, -50%) scale(1.03);
+        }
+
+        .game-button:active {
+            transform: translate(-50%, -50%) scale(0.98);
+        }
+
+        /* Overlay para garantir a permissão de áudio inicial */
+        #audio-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(2, 5, 9, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            cursor: pointer;
+        }
+
+        #audio-overlay h2 {
+            color: #d0e8ff;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: clamp(18px, 2.5vw, 32px);
+            letter-spacing: 3px;
+            text-shadow: 0 0 15px rgba(0, 162, 255, 0.8);
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        #audio-overlay p {
+            color: #8ab4f8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: clamp(12px, 1.2vw, 16px);
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Overlay para iniciar o vídeo com som -->
+    <div id="audio-overlay" onclick="startVideoPlayback()">
+        <h2>CLIQUE PARA INICIAR O JOGO</h2>
+        <p>[ Iniciar Apresentação em Tela Cheia ]</p>
+    </div>
+
+    <!-- Vídeo em tela cheia -->
+    <video id="introVideo" playsinline preload="auto">
+        <source src="assets/intro.mp4" type="video/mp4">
+        Seu navegador não suporta vídeos.
+    </video>
+
+    <!-- Container Principal com a imagem centralizada e faixas laterais customizadas -->
+    <div class="stage-container" id="mainStage" style="display: none;">
+        <!-- Animações estilo Matrix simulando computadores de bordo do navio nas laterais -->
+        <canvas id="matrix-left" class="matrix-canvas"></canvas>
+        <canvas id="matrix-right" class="matrix-canvas"></canvas>
+
+        <!-- Imagem de fundo principal -->
+        <img src="assets/background.webp" alt="Battle Navy Quiz Background" class="bg-image">
+
+        <!-- Botão Central -->
+        <a id="gameLinkBtn" href="#" class="game-button" target="_blank" rel="noopener noreferrer">
+            ✦ ENTRAR NO JOGO ✦
+        </a>
+    </div>
+
+    <script>
+        const video = document.getElementById('introVideo');
+        const overlay = document.getElementById('audio-overlay');
+        const mainStage = document.getElementById('mainStage');
+
+        function startVideoPlayback() {
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 400);
+
+            video.muted = false;
+            video.play().catch(err => {
+                console.log("Erro ao reproduzir com som, tentando mudo:", err);
+                video.muted = true;
+                video.play();
+            });
+        }
+
+        // Configuração dos efeitos Matrix nas laterais (simulando códigos e radares táticos navais)
+        function initMatrixEffect(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            // Caracteres customizados com termos militares/navais e hexadecimais
+            const chars = '01ABCDEF-TARGET-RADAR-LOCK-NAV-GRID-STATUS-ACTIVE';
+            const fontSize = 13;
+            const columns = Math.floor(canvas.width / fontSize);
+            const drops = [];
+
+            for (let i = 0; i < columns; i++) {
+                drops[i] = 1;
+            }
+
+            function draw() {
+                ctx.fillStyle = 'rgba(1, 4, 8, 0.12)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#00ff66'; // Tom verde militar tático
+                ctx.font = fontSize + 'px monospace';
+
+                for (let i = 0; i < drops.length; i++) {
+                    const text = chars.charAt(Math.floor(Math.random() * chars.length));
+                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                    drops[i]++;
+                }
+            }
+
+            return setInterval(draw, 35);
+        }
+
+        video.addEventListener('ended', () => {
+            video.style.opacity = '0';
+            setTimeout(() => {
+                video.style.display = 'none';
+                mainStage.style.display = 'flex';
+                // Inicializa as animações laterais nas duas tarjas
+                initMatrixEffect('matrix-left');
+                initMatrixEffect('matrix-right');
+            }, 500);
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            fetch('assets/game-link.txt')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Não foi possível carregar o arquivo game-link.txt');
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    const link = data.trim();
+                    if (link) {
+                        const btn = document.getElementById('gameLinkBtn');
+                        btn.href = link;
+                    }
+                })
+                .catch(error => {
+                    console.warn('Aviso: Execute via servidor local (Live Server) para leitura do arquivo .txt[cite: 7].', error);
+                });
+        });
+    </script>
+
+</body>
+</html>
+```[cite: 7]
