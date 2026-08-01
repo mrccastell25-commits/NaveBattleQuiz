@@ -127,6 +127,22 @@
   .btn-mode .mode-title{ font-size:.92rem; }
   .btn-mode .mode-sub{ font-family:'Nunito',sans-serif; font-size:.68rem; font-weight:700; color:var(--muted); }
   .btn-mode.online .mode-icon{ color:var(--gold); }
+  .btn-mode.cpu .mode-icon{ color:#7ee787; }
+
+  /* ── Seletor de dificuldade (modo vs Computador) ── */
+  .diff-row{ display:flex; gap:8px; }
+  .diff-btn{
+    flex:1; font-family:'Fredoka One',cursive; color:var(--text);
+    background:rgba(255,255,255,.06); border:1.5px solid var(--border); border-radius:12px;
+    padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:3px;
+    transition:border-color .15s, background .15s;
+  }
+  .diff-btn:hover{ border-color:var(--gold); background:rgba(255,255,255,.1); }
+  .diff-btn.active{ border-color:var(--gold); background:rgba(245,200,66,.14); }
+  .diff-btn .diff-icon{ font-size:1.15rem; }
+  .diff-btn .diff-name{ font-size:.72rem; }
+  .diff-btn.active .diff-name{ color:var(--gold); }
+  .diff-btn .diff-desc{ font-family:'Nunito',sans-serif; font-size:.58rem; font-weight:700; color:var(--muted); line-height:1.25; }
 
   /* ── Online lobby ── */
   .lobby-card{
@@ -920,7 +936,43 @@
         <span class="mode-sub">Cada jogador no seu próprio dispositivo</span>
       </span>
     </button>
+    <button class="btn-mode cpu" onclick="goToCpuSetup()">
+      <span class="mode-icon">🤖</span>
+      <span class="mode-text">
+        <span class="mode-title">Contra o Computador</span>
+        <span class="mode-sub">A IA responde e mira como um humano — às vezes acerta, às vezes erra</span>
+      </span>
+    </button>
   </div>
+</div>
+
+<!-- ═══════════ SETUP (VS CPU) ═══════════ -->
+<div class="screen hidden" id="cpuSetupScreen">
+  <div class="logo">⚓ Naval Battle Quiz</div>
+  <div class="tagline">RESPONDA CERTO PARA DISPARAR</div>
+  <div class="setup-card">
+    <div class="player-block p1-accent">
+      <span class="field-label">Seu nome</span>
+      <input class="name-input" id="cpuNameInput" maxlength="16" value="" placeholder="Seu nome">
+    </div>
+    <div class="player-block">
+      <span class="field-label">Dificuldade do Computador</span>
+      <div class="diff-row">
+        <button type="button" class="diff-btn" id="diffBtn-recruta" onclick="selectCpuDifficulty('recruta')">
+          <span class="diff-icon">🌊</span><span class="diff-name">Recruta</span><span class="diff-desc">Erra mais perguntas e mira solta</span>
+        </button>
+        <button type="button" class="diff-btn" id="diffBtn-oficial" onclick="selectCpuDifficulty('oficial')">
+          <span class="diff-icon">⚓</span><span class="diff-name">Oficial</span><span class="diff-desc">Comportamento equilibrado</span>
+        </button>
+        <button type="button" class="diff-btn" id="diffBtn-almirante" onclick="selectCpuDifficulty('almirante')">
+          <span class="diff-icon">🎖️</span><span class="diff-name">Almirante</span><span class="diff-desc">Acerta mais e mira esperto</span>
+        </button>
+      </div>
+    </div>
+    <button class="btn-start" onclick="startCpuSetup()">🤖 Start Battle</button>
+    <button class="btn-back-link" onclick="backToModeScreen()">← Back</button>
+  </div>
+  <p class="setup-hint">Você joga contra o Computador 🤖. Ele responde às perguntas como uma pessoa — às vezes acerta, às vezes erra — e, quando acerta um navio, mira nos vizinhos com mais ou menos precisão dependendo da dificuldade escolhida.</p>
 </div>
 
 <!-- ═══════════ SETUP (LOCAL) ═══════════ -->
@@ -1363,6 +1415,21 @@ let roomCode = null, mySlot = null, gameRef = null, onlineUnsub = null;
 let winShown = false;
 window._lastActTs = null;
 
+/* ═══════════════════ MODO CONTRA O COMPUTADOR ═══════════════════ */
+let CPU_MODE = false;
+let CPU_DIFFICULTY = 'oficial';
+let _pendingCpuDifficulty = 'oficial';
+let cpuHuntQueue = []; // fila de "pistas": vizinhos de acertos ainda não afundados
+// Cada dificuldade ajusta o comportamento para imitar um humano de verdade:
+//  quizAcc         → chance de acertar cada nível de pergunta (nunca é tudo ou nada)
+//  followUpChance  → chance de aproveitar uma pista (vizinho de um acerto) em vez de atirar "no escuro"
+//  checkerboard    → ao atirar às cegas, prioriza um padrão em xadrez (mais eficiente, como um jogador atento)
+const CPU_TUNING = {
+  recruta:  { quizAcc:{facil:.55, media:.40, dificil:.25}, followUpChance:.45, checkerboard:false },
+  oficial:  { quizAcc:{facil:.75, media:.58, dificil:.40}, followUpChance:.72, checkerboard:true  },
+  almirante:{ quizAcc:{facil:.90, media:.78, dificil:.62}, followUpChance:.93, checkerboard:true  },
+};
+
 function idx(r,c){ return r*SIZE+c; }
 function coordLabel(i){ const r=Math.floor(i/SIZE), c=i%SIZE; return COLS[c]+(r+1); }
 
@@ -1454,10 +1521,24 @@ window.goToOnlineLobby = function(){
   document.getElementById('modeScreen').classList.add('hidden');
   document.getElementById('lobbyScreen').classList.remove('hidden');
 };
+window.goToCpuSetup = function(){
+  sndClick();
+  document.getElementById('modeScreen').classList.add('hidden');
+  document.getElementById('cpuSetupScreen').classList.remove('hidden');
+  selectCpuDifficulty(_pendingCpuDifficulty || 'oficial');
+};
+window.selectCpuDifficulty = function(id){
+  _pendingCpuDifficulty = id;
+  Object.keys(CPU_TUNING).forEach(d=>{
+    const btn = document.getElementById('diffBtn-'+d);
+    if(btn) btn.classList.toggle('active', d===id);
+  });
+};
 window.backToModeScreen = function(){
   sndClick();
   document.getElementById('setupScreen').classList.add('hidden');
   document.getElementById('lobbyScreen').classList.add('hidden');
+  document.getElementById('cpuSetupScreen').classList.add('hidden');
   document.getElementById('modeScreen').classList.remove('hidden');
 };
 
@@ -1465,6 +1546,7 @@ window.backToModeScreen = function(){
 window.startSetup = function(){
   sndClick();
   ONLINE_MODE = false;
+  CPU_MODE = false;
   const n1 = document.getElementById('p1NameInput').value.trim() || 'Jogador 1';
   const n2 = document.getElementById('p2NameInput').value.trim() || 'Jogador 2';
   players = [makeEmptyPlayer(n1), makeEmptyPlayer(n2)];
@@ -1477,6 +1559,29 @@ window.startSetup = function(){
   selectedCells = [];
   document.getElementById('setupScreen').classList.add('hidden');
   goToPassScreen();
+};
+
+/* ═══════════════════ SETUP / START (VS COMPUTADOR) ═══════════════════ */
+window.startCpuSetup = function(){
+  sndClick();
+  ONLINE_MODE = false;
+  CPU_MODE = true;
+  CPU_DIFFICULTY = _pendingCpuDifficulty || 'oficial';
+  cpuHuntQueue = [];
+  const n1 = document.getElementById('cpuNameInput').value.trim() || 'Jogador 1';
+  const cpuLabel = {recruta:'Recruta 🤖', oficial:'Oficial 🤖', almirante:'Almirante 🤖'}[CPU_DIFFICULTY] || 'Computador 🤖';
+  players = [makeEmptyPlayer(n1), makeEmptyPlayer(cpuLabel)];
+  placeShipsFor(players[0]);
+  placeShipsFor(players[1]);
+  turn = 0;
+  usedQuestions = [];
+  roundNumber = 1;
+  currentWeapon = null;
+  selectedCells = [];
+  document.getElementById('cpuSetupScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  renderAll();
+  startTurnQuiz(); // é sempre a vez do jogador humano primeiro
 };
 
 function goToPassScreen(){
@@ -1515,19 +1620,22 @@ function renderBoardLabels(){
 
 function renderAll(){
   renderBoardLabels();
-  const meIdx = ONLINE_MODE ? mySlot : turn;
+  // Em modo CPU, "eu" é sempre o jogador humano (índice 0) — assim o painel/tabuleiro 3D
+  // nunca mostra a frota do computador quando é a vez dele (evita "vazar" a posição dos navios da IA).
+  const meIdx = ONLINE_MODE ? mySlot : (CPU_MODE ? 0 : turn);
   const enemyIdx = 1-meIdx;
   const me = players[meIdx];
   const enemy = players[enemyIdx];
-  const isMyActiveTurn = ONLINE_MODE ? (turn===mySlot) : true;
+  const isMyActiveTurn = ONLINE_MODE ? (turn===mySlot) : (CPU_MODE ? (turn===0) : true);
 
   if(ONLINE_MODE){
     document.getElementById('turnBadge').textContent = turn===mySlot ? 'Sua Vez' : `Vez de ${players[turn].name}`;
-    document.getElementById('turnBadge').className = turn===0 ? 'p1' : 'p2';
+  } else if(CPU_MODE){
+    document.getElementById('turnBadge').textContent = turn===0 ? 'Sua Vez' : `Vez de ${players[1].name}`;
   } else {
-    document.getElementById('turnBadge').textContent = `Vez de ${me.name}`;
-    document.getElementById('turnBadge').className = turn===0 ? 'p1' : 'p2';
+    document.getElementById('turnBadge').textContent = `Vez de ${players[turn].name}`;
   }
+  document.getElementById('turnBadge').className = turn===0 ? 'p1' : 'p2';
 
   if(!isMyActiveTurn){
     document.getElementById('turnMsg').textContent = `⏳ Aguardando ${players[turn].name} jogar...`;
@@ -1545,6 +1653,10 @@ function renderAll(){
   renderOwn3DBoard(me);
   renderDashboard(me, enemy);
   renderHelperButtons();
+
+  // Bloqueia cliques no radar inimigo enquanto o computador estiver jogando.
+  const enemyGridEl = document.getElementById('enemyGrid');
+  if(enemyGridEl) enemyGridEl.style.pointerEvents = (CPU_MODE && turn!==0) ? 'none' : '';
 }
 
 /* ═══════════════════ DESKTOP DASHBOARD (Comandante / Status Inimigo / Barra Inferior) ═══════════════════ */
@@ -1603,7 +1715,7 @@ function renderDashboard(me, enemy){
 
   const quizStatus = document.getElementById('quizStatusText');
   if(quizStatus){
-    const isMyActiveTurn = ONLINE_MODE ? (turn===mySlot) : true;
+    const isMyActiveTurn = ONLINE_MODE ? (turn===mySlot) : (CPU_MODE ? (turn===0) : true);
     if(!isMyActiveTurn){
       quizStatus.textContent = `Aguardando ${players[turn].name}...`;
     } else if(currentWeapon){
@@ -2133,10 +2245,16 @@ function startTurnQuiz(){
   const qo = document.getElementById('quizOverlay');
   if(qo && qo.classList.contains('open')) return;
   openQuiz();
+  if(CPU_MODE && turn===1){
+    // dá um tempo de "pensar" antes de responder, para parecer humano
+    const thinkMs = 1100 + Math.random()*1700;
+    setTimeout(()=>{ if(CPU_MODE && turn===1 && !quizAnswered) cpuAnswerQuiz(); }, thinkMs);
+  }
 }
 
 function enemyCellClicked(i){
   if(ONLINE_MODE && turn!==mySlot) return;
+  if(CPU_MODE && turn!==0) return; // impede o humano de disparar/interferir durante a vez da IA
   if(sonarPending){ sonarPending=false; runSonarCheck(i); return; }
   if(!currentWeapon) return; // precisa responder a pergunta primeiro para desbloquear um armamento
   const enemy = players[1-turn];
@@ -2183,7 +2301,9 @@ function openQuiz(){
     const btn = document.createElement('button');
     btn.className='qopt';
     btn.textContent = currentQuestion.o[origIdx];
+    btn.dataset.correct = (origIdx===currentQuestion.a) ? '1' : '0';
     btn.onclick = ()=>answerQuiz(origIdx===currentQuestion.a, btn, optWrap);
+    if(CPU_MODE && turn===1) btn.disabled = true; // impede o humano de responder no lugar da IA
     optWrap.appendChild(btn);
   });
   document.getElementById('quizOverlay').classList.add('open');
@@ -2217,6 +2337,9 @@ function answerQuiz(isCorrect, btnEl, wrap){
       selectedCells = [];
       showWeaponBanner(weapon);
       renderAll();
+      if(CPU_MODE && turn===1){
+        setTimeout(()=>cpuFireWeapon(weapon), 1000 + Math.random()*700);
+      }
     } else {
       failShot();
     }
@@ -2322,6 +2445,8 @@ function resolveShot(indices){
       }
     });
 
+    if(CPU_MODE && turn===1) updateCpuHuntQueue(results);
+
     if(sunkNames.length){
       sndSunk();
       showToast(`💥 Você afundou o ${sunkNames.join(' e o ')} de ${enemy.name}!`, 'sunk');
@@ -2359,7 +2484,110 @@ function failShot(){
 function nextTurn(){
   turn = 1-turn;
   if(turn===0) roundNumber++;
+  if(CPU_MODE){
+    renderAll();
+    // turn===1 → vez da IA (pequena pausa antes de "olhar" a pergunta);
+    // turn===0 → volta para o humano, abre a pergunta normalmente.
+    setTimeout(startTurnQuiz, turn===1 ? 900 : 500);
+    return;
+  }
   goToPassScreen();
+}
+
+/* ═══════════════════ INTELIGÊNCIA DA CPU (modo contra o Computador) ═══════════════════
+   A IA usa exatamente o mesmo fluxo de pergunta → arma → disparo do jogador humano
+   (openQuiz/answerQuiz/resolveShot), só que decide sozinha o que "clicar":
+   1) cpuAnswerQuiz()  → responde a pergunta com uma chance de acerto (não é perfeita).
+   2) cpuFireWeapon()  → depois de desbloquear uma arma, escolhe as casas do disparo.
+   3) updateCpuHuntQueue() → após cada disparo, guarda pistas de acertos ainda não afundados,
+      para "perseguir" o navio nas rodadas seguintes — como um jogador humano atento faria. */
+
+function cpuAnswerQuiz(){
+  if(quizAnswered) return;
+  const wrap = document.getElementById('quizOptions');
+  if(!wrap || !currentQuestion) return;
+  const buttons = Array.from(wrap.children);
+  const cfg = CPU_TUNING[CPU_DIFFICULTY] || CPU_TUNING.oficial;
+  const acc = (cfg.quizAcc && cfg.quizAcc[currentQuestion.level] != null) ? cfg.quizAcc[currentQuestion.level] : 0.55;
+  const willBeCorrect = Math.random() < acc;
+  const correctBtn = buttons.find(b=>b.dataset.correct==='1');
+  const wrongBtns = buttons.filter(b=>b.dataset.correct!=='1');
+  const target = willBeCorrect
+    ? correctBtn
+    : (wrongBtns[Math.floor(Math.random()*wrongBtns.length)] || correctBtn);
+  if(!target) return;
+  // Chama answerQuiz() diretamente (não via clique real) — os botões ficam com
+  // "disabled" apenas para impedir o humano de responder no lugar da IA.
+  answerQuiz(target.dataset.correct==='1', target, wrap);
+}
+
+function cpuFireWeapon(weapon){
+  if(!(CPU_MODE && turn===1)) return; // proteção extra caso o estado tenha mudado nesse meio-tempo
+  const enemy = players[0]; // tabuleiro do jogador humano
+  const targets = cpuChooseTargets(weapon.shots, enemy);
+  currentWeapon = null;
+  selectedCells = [];
+  if(!targets.length){ nextTurn(); return; } // sem casas livres (não deveria acontecer em jogo normal)
+  resolveShot(targets);
+}
+
+function cpuChooseTargets(n, enemyPlayer){
+  const chosen = [];
+  for(let k=0; k<n; k++){
+    const cell = cpuPickOneCell(enemyPlayer, chosen);
+    if(cell===null) break;
+    chosen.push(cell);
+  }
+  return chosen;
+}
+
+function cpuPickOneCell(enemyPlayer, alreadyChosenThisTurn){
+  const isTaken = i => enemyPlayer.shotsReceived.has(i) || alreadyChosenThisTurn.includes(i);
+  const cfg = CPU_TUNING[CPU_DIFFICULTY] || CPU_TUNING.oficial;
+
+  // 1) Tenta seguir uma pista deixada por um acerto anterior (modo "caça").
+  //    A chance de realmente aproveitar a pista varia por dificuldade — um Recruta
+  //    às vezes "esquece" a pista e atira no escuro, como um humano distraído.
+  while(cpuHuntQueue.length){
+    const candidate = cpuHuntQueue.shift();
+    if(isTaken(candidate)) continue;
+    if(Math.random() < cfg.followUpChance) return candidate;
+  }
+
+  // 2) Sem pistas (ou decidiu não usá-las agora): escolhe uma casa ainda não atingida,
+  //    com leve preferência por um padrão em xadrez nas dificuldades mais altas.
+  const pool = [];
+  for(let i=0; i<SIZE*SIZE; i++){
+    if(isTaken(i)) continue;
+    if(cfg.checkerboard){
+      const r = Math.floor(i/SIZE), c = i%SIZE;
+      if((r+c)%2 !== 0) continue;
+    }
+    pool.push(i);
+  }
+  if(!pool.length){
+    for(let i=0; i<SIZE*SIZE; i++) if(!isTaken(i)) pool.push(i);
+  }
+  if(!pool.length) return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+function updateCpuHuntQueue(results){
+  results.forEach(r=>{
+    if(!r.shipOwner) return; // água: nenhuma pista nova
+    if(r.shipOwner.sunk){
+      // Navio afundado: descarta pistas relacionadas a ele (o "mistério" foi resolvido).
+      cpuHuntQueue = cpuHuntQueue.filter(i=>!r.shipOwner.cells.has(i));
+      return;
+    }
+    // Acerto sem afundar: adiciona os 4 vizinhos ortogonais como possíveis próximos alvos.
+    const r0 = Math.floor(r.idx/SIZE), c0 = r.idx % SIZE;
+    [[r0-1,c0],[r0+1,c0],[r0,c0-1],[r0,c0+1]].forEach(([rr,cc])=>{
+      if(rr<0||cc<0||rr>=SIZE||cc>=SIZE) return;
+      const ni = idx(rr,cc);
+      if(!cpuHuntQueue.includes(ni)) cpuHuntQueue.push(ni);
+    });
+  });
 }
 
 function showToast(msg, cls){
@@ -2376,7 +2604,9 @@ function currentActingPlayer(){
   return ONLINE_MODE ? players[mySlot] : players[turn];
 }
 function helperTurnAllowed(){
-  return ONLINE_MODE ? (turn===mySlot) : true;
+  if(ONLINE_MODE) return turn===mySlot;
+  if(CPU_MODE) return turn===0; // ajudas manuais só podem ser usadas pelo jogador humano
+  return true;
 }
 
 const HELPER_DESCS = {
@@ -2735,7 +2965,12 @@ window.restartGame = function(){
   }
   document.getElementById('app').classList.add('hidden');
   document.getElementById('passScreen').classList.add('hidden');
-  document.getElementById('setupScreen').classList.remove('hidden');
+  if(CPU_MODE){
+    CPU_MODE = false; // reativado ao clicar em "Start Battle" na tela de configuração da IA
+    document.getElementById('cpuSetupScreen').classList.remove('hidden');
+  } else {
+    document.getElementById('setupScreen').classList.remove('hidden');
+  }
 };
 
 
@@ -2890,6 +3125,7 @@ window.copyCode = function(){
 function startOnlineGame(data){
   if(onlineUnsub){ onlineUnsub(); onlineUnsub=null; }
   ONLINE_MODE = true;
+  CPU_MODE = false;
   winShown = false;
   window._lastActTs = null;
   usedQuestions = [];
@@ -2901,6 +3137,7 @@ function startOnlineGame(data){
   document.getElementById('lobbyScreen').classList.add('hidden');
   document.getElementById('waitScreen').classList.add('hidden');
   document.getElementById('setupScreen').classList.add('hidden');
+  document.getElementById('cpuSetupScreen').classList.add('hidden');
   document.getElementById('passScreen').classList.add('hidden');
 
   document.getElementById('onlineBar').classList.add('show');
