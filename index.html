@@ -157,15 +157,12 @@ transform:translate(-50%,-50%);
 }
 
 
-
 .game-button:hover{
 
 background:#0d1727;
-
 border-color:#00a2ff;
 
 }
-
 
 
 .game-button:active{
@@ -290,7 +287,6 @@ top:72%;
 
 @media(max-width:400px){
 
-
 .game-button{
 
 width:85%;
@@ -328,11 +324,8 @@ CLIQUE PARA INICIAR O JOGO
 
 
 
-<video id="introVideo" playsinline preload="auto">
+<video id="introVideo" playsinline preload="auto"></video>
 
-<source src="assets/intro.mp4" type="video/mp4">
-
-</video>
 
 
 
@@ -373,6 +366,7 @@ target="_blank">
 
 
 
+
 <script>
 
 
@@ -381,6 +375,35 @@ const video=document.getElementById("introVideo");
 const overlay=document.getElementById("audio-overlay");
 
 const mainStage=document.getElementById("mainStage");
+
+
+
+/* ESCOLHE O VIDEO CONFORME O DISPOSITIVO */
+
+function loadIntroVideo(){
+
+let mobile = window.matchMedia("(max-width:768px)").matches;
+
+
+if(mobile){
+
+video.src="assets/intro_mobile.mp4";
+
+}else{
+
+video.src="assets/intro.mp4";
+
+}
+
+
+video.load();
+
+}
+
+
+loadIntroVideo();
+
+
 
 
 
@@ -509,6 +532,7 @@ return setInterval(draw,35);
 
 
 
+
 video.addEventListener("ended",()=>{
 
 
@@ -533,6 +557,7 @@ initMatrixEffect("matrix-right");
 
 
 });
+
 
 
 
