@@ -1,278 +1,573 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Battle Navy Quiz</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #010408;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+<title>Battle Navy Quiz</title>
 
-        /* Container principal preenchendo a tela com as laterais livres para o efeito Matrix */
-        .stage-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #010408;
-        }
+<style>
 
-        /* Imagem de fundo centralizada */
-        .bg-image {
-            height: 100%;
-            width: auto;
-            max-width: 100%;
-            object-fit: contain;
-            display: block;
-            z-index: 10;
-        }
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
 
-        /* Canvas laterais estilo Matrix para simular código de computadores de bordo do navio */
-        .matrix-canvas {
-            position: absolute;
-            top: 0;
-            width: 25vw;
-            height: 100vh;
-            z-index: 5;
-            pointer-events: none;
-            opacity: 0.65;
-        }
+html,body{
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#010408;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
 
-        #matrix-left {
-            left: 0;
-        }
 
-        #matrix-right {
-            right: 0;
-        }
+.stage-container{
+    position:relative;
+    width:100vw;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#010408;
+}
 
-        /* Camada do Vídeo em Tela Cheia */
-        #introVideo {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
-            background: #000;
-            z-index: 9999;
-            transition: opacity 0.5s ease;
-        }
 
-        /* Botão "Entrar no Jogo" centralizado sobre a imagem ao término do vídeo */
-        .game-button {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 320px;
-            height: 85px;
-            background: #070d18;
-            border: 2px solid #233856;
-            box-shadow: inset 0 0 15px rgba(0, 162, 255, 0.4), 0 6px 20px rgba(0,0,0,0.95);
-            cursor: pointer;
-            text-decoration: none;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: bold;
-            font-size: 20px;
-            color: #d0e8ff;
-            letter-spacing: 2px;
-            text-shadow: 0 0 8px rgba(0, 162, 255, 0.9), 0 2px 4px rgba(0,0,0,0.9);
-            transition: all 0.2s ease-in-out;
-            z-index: 50;
-            opacity: 0;
-            animation: fadeInButton 0.8s ease forwards 0.3s;
-        }
+.bg-image{
+    height:100%;
+    width:auto;
+    max-width:100%;
+    object-fit:contain;
+    display:block;
+    z-index:10;
+}
 
-        @keyframes fadeInButton {
-            from { opacity: 0; transform: translate(-50%, -40%); }
-            to { opacity: 1; transform: translate(-50%, -50%); }
-        }
 
-        .game-button:hover {
-            background: #0d1727;
-            border-color: #00a2ff;
-            color: #ffffff;
-            text-shadow: 0 0 15px rgba(0, 200, 255, 1), 0 0 25px rgba(0, 162, 255, 0.9);
-            box-shadow: inset 0 0 18px rgba(0, 162, 255, 0.6), 0 8px 25px rgba(0,0,0,0.95);
-            transform: translate(-50%, -50%) scale(1.03);
-        }
+/* Matrix lateral */
 
-        .game-button:active {
-            transform: translate(-50%, -50%) scale(0.98);
-        }
+.matrix-canvas{
+    position:absolute;
+    top:0;
+    width:25vw;
+    height:100vh;
+    z-index:5;
+    pointer-events:none;
+    opacity:.65;
+}
 
-        /* Overlay para garantir a permissão de áudio inicial */
-        #audio-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(2, 5, 9, 0.95);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            cursor: pointer;
-        }
+#matrix-left{
+    left:0;
+}
 
-        #audio-overlay h2 {
-            color: #d0e8ff;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: clamp(18px, 2.5vw, 32px);
-            letter-spacing: 3px;
-            text-shadow: 0 0 15px rgba(0, 162, 255, 0.8);
-            margin-bottom: 12px;
-            text-align: center;
-        }
+#matrix-right{
+    right:0;
+}
 
-        #audio-overlay p {
-            color: #8ab4f8;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: clamp(12px, 1.2vw, 16px);
-            letter-spacing: 1px;
-        }
-    </style>
+
+/* Vídeo */
+
+#introVideo{
+
+    position:fixed;
+    top:0;
+    left:0;
+
+    width:100vw;
+    height:100vh;
+
+    object-fit:cover;
+
+    background:#000;
+
+    z-index:9999;
+
+    transition:opacity .5s;
+}
+
+
+
+/* Botão */
+
+.game-button{
+
+    position:absolute;
+
+    top:50%;
+    left:50%;
+
+    transform:translate(-50%,-50%);
+
+    width:320px;
+    height:85px;
+
+    background:#070d18;
+
+    border:2px solid #233856;
+
+    box-shadow:
+    inset 0 0 15px rgba(0,162,255,.4),
+    0 6px 20px rgba(0,0,0,.95);
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    text-decoration:none;
+
+    font-family:"Courier New",monospace;
+
+    font-weight:bold;
+
+    font-size:20px;
+
+    color:#d0e8ff;
+
+    letter-spacing:2px;
+
+    text-shadow:
+    0 0 8px rgba(0,162,255,.9),
+    0 2px 4px #000;
+
+
+    opacity:0;
+
+    animation:
+    fadeButton .8s forwards .3s;
+
+    z-index:50;
+
+}
+
+
+@keyframes fadeButton{
+
+from{
+opacity:0;
+transform:translate(-50%,-40%);
+}
+
+to{
+opacity:1;
+transform:translate(-50%,-50%);
+}
+
+}
+
+
+
+.game-button:hover{
+
+background:#0d1727;
+
+border-color:#00a2ff;
+
+}
+
+
+
+.game-button:active{
+
+transform:translate(-50%,-50%) scale(.98);
+
+}
+
+
+
+/* Tela inicial */
+
+#audio-overlay{
+
+position:fixed;
+
+top:0;
+left:0;
+
+width:100vw;
+height:100vh;
+
+background:rgba(2,5,9,.95);
+
+display:flex;
+
+flex-direction:column;
+
+justify-content:center;
+
+align-items:center;
+
+z-index:10000;
+
+cursor:pointer;
+
+transition:.4s;
+
+}
+
+
+#audio-overlay h2{
+
+color:#d0e8ff;
+
+font-family:"Courier New",monospace;
+
+font-size:clamp(18px,2.5vw,32px);
+
+letter-spacing:3px;
+
+text-align:center;
+
+text-shadow:
+0 0 15px rgba(0,162,255,.8);
+
+margin-bottom:12px;
+
+}
+
+
+#audio-overlay p{
+
+color:#8ab4f8;
+
+font-family:Arial;
+
+font-size:14px;
+
+}
+
+
+
+/* MOBILE */
+
+@media(max-width:768px){
+
+.stage-container{
+
+width:100vw;
+height:100vh;
+
+}
+
+
+.bg-image{
+
+width:100%;
+height:100%;
+
+object-fit:cover;
+
+}
+
+
+.matrix-canvas{
+
+display:none;
+
+}
+
+
+.game-button{
+
+width:82%;
+
+max-width:320px;
+
+height:70px;
+
+font-size:16px;
+
+letter-spacing:1px;
+
+top:72%;
+
+}
+
+}
+
+
+
+@media(max-width:400px){
+
+
+.game-button{
+
+width:85%;
+
+height:60px;
+
+font-size:14px;
+
+top:75%;
+
+}
+
+}
+
+
+</style>
+
 </head>
+
+
 <body>
 
-    <!-- Overlay para iniciar o vídeo com som -->
-    <div id="audio-overlay" onclick="startVideoPlayback()">
-        <h2>CLIQUE PARA INICIAR O JOGO</h2>
-        <p>[ Iniciar Apresentação em Tela Cheia ]</p>
-    </div>
 
-    <!-- Vídeo em tela cheia -->
-    <video id="introVideo" playsinline preload="auto">
-        <source src="assets/intro.mp4" type="video/mp4">
-        Seu navegador não suporta vídeos.
-    </video>
+<div id="audio-overlay" onclick="startVideoPlayback()">
 
-    <!-- Container Principal com a imagem centralizada e faixas laterais customizadas -->
-    <div class="stage-container" id="mainStage" style="display: none;">
-        <!-- Animações estilo Matrix simulando computadores de bordo do navio nas laterais -->
-        <canvas id="matrix-left" class="matrix-canvas"></canvas>
-        <canvas id="matrix-right" class="matrix-canvas"></canvas>
+<h2>
+CLIQUE PARA INICIAR O JOGO
+</h2>
 
-        <!-- Imagem de fundo principal -->
-        <img src="assets/background.webp" alt="Battle Navy Quiz Background" class="bg-image">
+<p>
+[ Iniciar Apresentação em Tela Cheia ]
+</p>
 
-        <!-- Botão Central -->
-        <a id="gameLinkBtn" href="#" class="game-button" target="_blank" rel="noopener noreferrer">
-            ✦ ENTRAR NO JOGO ✦
-        </a>
-    </div>
+</div>
 
-    <script>
-        const video = document.getElementById('introVideo');
-        const overlay = document.getElementById('audio-overlay');
-        const mainStage = document.getElementById('mainStage');
 
-        function startVideoPlayback() {
-            overlay.style.opacity = '0';
-            setTimeout(() => {
-                overlay.style.display = 'none';
-            }, 400);
 
-            video.muted = false;
-            video.play().catch(err => {
-                console.log("Erro ao reproduzir com som, tentando mudo:", err);
-                video.muted = true;
-                video.play();
-            });
-        }
+<video id="introVideo" playsinline preload="auto">
 
-        // Configuração dos efeitos Matrix nas laterais (simulando códigos e radares táticos navais)
-        function initMatrixEffect(canvasId) {
-            const canvas = document.getElementById(canvasId);
-            const ctx = canvas.getContext('2d');
+<source src="assets/intro.mp4" type="video/mp4">
 
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
+</video>
 
-            // Caracteres customizados com termos militares/navais e hexadecimais
-            const chars = '01ABCDEF-TARGET-RADAR-LOCK-NAV-GRID-STATUS-ACTIVE';
-            const fontSize = 13;
-            const columns = Math.floor(canvas.width / fontSize);
-            const drops = [];
 
-            for (let i = 0; i < columns; i++) {
-                drops[i] = 1;
-            }
 
-            function draw() {
-                ctx.fillStyle = 'rgba(1, 4, 8, 0.12)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+<div class="stage-container" id="mainStage" style="display:none;">
 
-                ctx.fillStyle = '#00ff66'; // Tom verde militar tático
-                ctx.font = fontSize + 'px monospace';
 
-                for (let i = 0; i < drops.length; i++) {
-                    const text = chars.charAt(Math.floor(Math.random() * chars.length));
-                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+<canvas id="matrix-left" class="matrix-canvas"></canvas>
 
-                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                        drops[i] = 0;
-                    }
-                    drops[i]++;
-                }
-            }
+<canvas id="matrix-right" class="matrix-canvas"></canvas>
 
-            return setInterval(draw, 35);
-        }
 
-        video.addEventListener('ended', () => {
-            video.style.opacity = '0';
-            setTimeout(() => {
-                video.style.display = 'none';
-                mainStage.style.display = 'flex';
-                // Inicializa as animações laterais nas duas tarjas
-                initMatrixEffect('matrix-left');
-                initMatrixEffect('matrix-right');
-            }, 500);
-        });
 
-        window.addEventListener('DOMContentLoaded', () => {
-            fetch('assets/game-link.txt')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Não foi possível carregar o arquivo game-link.txt');
-                    }
-                    return response.text();
-                })
-                .then(data => {
-                    const link = data.trim();
-                    if (link) {
-                        const btn = document.getElementById('gameLinkBtn');
-                        btn.href = link;
-                    }
-                })
-                .catch(error => {
-                    console.warn('Aviso: Execute via servidor local (Live Server) para leitura do arquivo .txt[cite: 7].', error);
-                });
-        });
-    </script>
+<picture>
+
+<source media="(max-width:768px)"
+srcset="assets/background_mobile.webp">
+
+
+<img src="assets/background.webp"
+class="bg-image">
+
+</picture>
+
+
+
+
+<a id="gameLinkBtn"
+href="#"
+class="game-button"
+target="_blank">
+
+✦ ENTRAR NO JOGO ✦
+
+</a>
+
+
+</div>
+
+
+
+<script>
+
+
+const video=document.getElementById("introVideo");
+
+const overlay=document.getElementById("audio-overlay");
+
+const mainStage=document.getElementById("mainStage");
+
+
+
+function startVideoPlayback(){
+
+
+overlay.style.opacity="0";
+
+
+setTimeout(()=>{
+
+overlay.style.display="none";
+
+},400);
+
+
+
+video.muted=false;
+
+
+video.play().catch(()=>{
+
+video.muted=true;
+
+video.play();
+
+});
+
+
+}
+
+
+
+
+
+function initMatrixEffect(id){
+
+
+const canvas=document.getElementById(id);
+
+const ctx=canvas.getContext("2d");
+
+
+canvas.width=canvas.offsetWidth;
+
+canvas.height=canvas.offsetHeight;
+
+
+
+const chars=
+"01ABCDEF-TARGET-RADAR-LOCK-NAV-GRID-STATUS-ACTIVE";
+
+
+const size=13;
+
+
+const columns=Math.floor(canvas.width/size);
+
+
+const drops=[];
+
+
+for(let i=0;i<columns;i++){
+
+drops[i]=1;
+
+}
+
+
+
+function draw(){
+
+
+ctx.fillStyle="rgba(1,4,8,.12)";
+
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+
+
+ctx.fillStyle="#00ff66";
+
+ctx.font=size+"px monospace";
+
+
+
+for(let i=0;i<drops.length;i++){
+
+
+let txt=
+chars.charAt(
+Math.floor(Math.random()*chars.length)
+);
+
+
+
+ctx.fillText(
+txt,
+i*size,
+drops[i]*size
+);
+
+
+
+if(drops[i]*size>canvas.height &&
+Math.random()>.975){
+
+drops[i]=0;
+
+}
+
+
+drops[i]++;
+
+}
+
+
+}
+
+
+return setInterval(draw,35);
+
+
+}
+
+
+
+
+
+video.addEventListener("ended",()=>{
+
+
+video.style.opacity="0";
+
+
+setTimeout(()=>{
+
+
+video.style.display="none";
+
+
+mainStage.style.display="flex";
+
+
+initMatrixEffect("matrix-left");
+
+initMatrixEffect("matrix-right");
+
+
+},500);
+
+
+});
+
+
+
+
+
+window.addEventListener("DOMContentLoaded",()=>{
+
+
+fetch("assets/game-link.txt")
+
+.then(r=>r.text())
+
+.then(link=>{
+
+
+document.getElementById("gameLinkBtn").href=
+link.trim();
+
+
+})
+
+
+.catch(err=>{
+
+console.warn(err);
+
+});
+
+
+});
+
+
+
+</script>
+
 
 </body>
 </html>
-```[cite: 7]
